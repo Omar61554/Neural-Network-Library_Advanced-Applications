@@ -1,13 +1,20 @@
 import numpy as np
 
-def mse(y_true, y_pred):
+class MSE:
     """
-    Mean Squared Error (MSE) Loss.
+    Mean Squared Error Loss.
+    Formula: L = (1/N) * sum((y_true - y_pred)^2)
     """
-    return np.mean(np.power(y_true - y_pred, 2))
+    def compute(self, y_true, y_pred):
+        """
+        Returns the scalar loss (mean over all samples).
+        """
+        return np.mean(np.power(y_true - y_pred, 2))
 
-def mse_prime(y_true, y_pred):
-    """
-    Derivative of MSE Loss w.r.t y_pred.
-    """
-    return 2 * (y_pred - y_true) / np.size(y_true)
+    def gradient(self, y_true, y_pred):
+        """
+        Returns the derivative of MSE w.r.t y_pred.
+        Formula: dL/dY_pred = 2/N * (y_pred - y_true)
+        """
+        samples = np.size(y_true)
+        return 2 * (y_pred - y_true) / samples
