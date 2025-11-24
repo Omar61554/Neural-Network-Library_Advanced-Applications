@@ -1,55 +1,98 @@
+# --------------------------
+# FILE: lib/layers.py
+# --------------------------
+"""Layer implementations."""
 import numpy as np
+from .utils import xavier_init
+
 
 class Layer:
-    """
-    Abstract base class for all layers.
-    """
     def __init__(self):
-        self.input = None
-        self.output = None
+        pass
 
-    def forward(self, input_data):
-        """
-        Computes the output of the layer given the input.
-        """
+    def forward(self, x):
         raise NotImplementedError
 
-    def backward(self, output_gradient):
-        """
-        Computes the gradient with respect to the input.
-        Updates parameters if the layer has any.
-        """
+    def backward(self, grad):
         raise NotImplementedError
 
-class Dense(Layer):
-    """
-    Fully connected layer.
-    """
-    def __init__(self, input_size, output_size):
-        super().__init__()
-        # Initialize weights using Xavier/Glorot initialization
-        limit = np.sqrt(6 / (input_size + output_size))
-        self.weights = np.random.uniform(-limit, limit, (input_size, output_size))
-        self.biases = np.zeros((1, output_size))
-        
-        # Gradients
-        self.dweights = None
-        self.dbiases = None
+    def parameters(self):
+        """
+        Returns list of tuples (param, grad) for all parameters.
+        """
+        return []
 
-    def forward(self, input_data):
-        self.input = input_data
-        # Z = X . W + B
-        self.output = np.dot(self.input, self.weights) + self.biases
-        return self.output
+    def zero_grad(self):
+        """
+        Resets gradients to zero.
+        """
+        pass
 
-    def backward(self, output_gradient):
-        # Gradient w.r.t weights: X^T . dL/dY
-        self.dweights = np.dot(self.input.T, output_gradient)
-        
-        # Gradient w.r.t biases: sum(dL/dY) across batch dimension
-        self.dbiases = np.sum(output_gradient, axis=0, keepdims=True)
-        
-        # Gradient w.r.t input: dL/dY . W^T
-        input_gradient = np.dot(output_gradient, self.weights.T)
-        
-        return input_gradient
+class Linear(Layer):
+	def __init__(self, out_features, use_bias=True, init='xavier'):
+		super().__init__()
+		self.out_features = out_features
+		self.use_bias = use_bias
+		self.init = init
+		self.built = False
+
+
+	def build(self, input_shape):
+		in_features = input_shape[1]
+		if self.init == 'xavier':
+			self.W = xavier_init(in_features, self.out_features)
+		elif self.init == 'he':
+			from .utils import he_init
+			self.W = he_init(in_features, self.out_features)
+		else:
+			self.W = np.random.randn(in_features, self.out_features) * 0.01
+		self.b = np.zeros((1, self.out_features)) if self.use_bias else None
+		self.dW = np.zeros_like(self.W)
+		self.db = np.zeros_like(self.b) if self.use_bias else None
+		self._x = None
+		self.built = True
+
+
+	def forward(self, x):
+		if not self.built:
+			self.build(x.shape)
+		self._x = x
+		out = x.dot(self.W)
+		if self.use_bias:
+			out = out + self.b
+		return out
+
+
+	def backward(self, grad):
+		# grad: (batch, out_features)
+		batch_size = self._x.shape[0]
+		self.dW[:] = self._x.T.dot(grad) / batch_size
+		if self.use_bias:
+			self.db[:] = np.mean(grad, axis=0, keepdims=True)
+		return grad.dot(self.W.T)
+
+
+	def parameters(self):
+		params = [(self.W, self.dW)]
+		if self.use_bias:
+			params.append((self.b, self.db))
+		return params
+
+
+	def zero_grad(self):
+		self.dW.fill(0)
+		if self.use_bias:
+			self.db.fill(0)
+
+
+class Flatten(Layer):
+	def __init__(self):
+		super().__init__()
+		self._orig_shape = None
+
+	def forward(self, x):
+		self._orig_shape = x.shape
+		return x.reshape(x.shape[0], -1)
+
+	def backward(self, grad):
+		return grad.reshape(self._orig_shape)

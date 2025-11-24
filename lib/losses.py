@@ -1,20 +1,50 @@
+# --------------------------
+# FILE: lib/losses.py
+# --------------------------
+"""Loss functions."""
 import numpy as np
 
-class MSE:
-    """
-    Mean Squared Error Loss.
-    Formula: L = (1/N) * sum((y_true - y_pred)^2)
-    """
-    def compute(self, y_true, y_pred):
-        """
-        Returns the scalar loss (mean over all samples).
-        """
-        return np.mean(np.power(y_true - y_pred, 2))
 
-    def gradient(self, y_true, y_pred):
-        """
-        Returns the derivative of MSE w.r.t y_pred.
-        Formula: dL/dY_pred = 2/N * (y_pred - y_true)
-        """
-        samples = np.size(y_true)
-        return 2 * (y_pred - y_true) / samples
+class Loss:
+	def forward(self, pred, target):
+		raise NotImplementedError
+
+	def backward(self):
+		raise NotImplementedError
+
+
+class MSELoss(Loss):
+	def __init__(self):
+		self._pred = None
+		self._target = None
+
+	def forward(self, pred, target):
+		self._pred = pred
+		self._target = target
+		return np.mean((pred - target) ** 2)
+
+	def backward(self):
+		n = self._pred.shape[0]
+		return 2 * (self._pred - self._target) / n
+
+
+class CrossEntropy(Loss):
+	def __init__(self):
+		self._pred = None
+		self._target = None
+
+	def forward(self, pred, target):
+		# pred: probabilities from softmax or sigmoid
+		eps = 1e-12
+		self._pred = np.clip(pred, eps, 1 - eps)
+		self._target = target
+		if self._pred.shape == self._target.shape and self._pred.shape[1] == 1:
+			# binary cross-entropy
+			return -np.mean(self._target * np.log(self._pred) + (1 - self._target) * np.log(1 - self._pred))
+		else:
+			# categorical cross-entropy expects one-hot targets
+			return -np.mean(np.sum(self._target * np.log(self._pred), axis=1))
+
+	def backward(self):
+		n = self._pred.shape[0]
+		return (self._pred - self._target) / n

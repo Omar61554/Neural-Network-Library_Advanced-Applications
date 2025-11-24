@@ -1,86 +1,65 @@
+# --------------------------
+# FILE: lib/network.py
+# --------------------------
+"""Keras-like Model API: add, compile, fit, predict."""
 import numpy as np
-from .layers import Layer
-from .losses import mse, mse_prime
-from .optimizer import SGD
+from .utils import to_batches
 
-class Network:
-    def __init__(self):
-        self.layers = []
-        self.loss = None
-        self.loss_prime = None
-        self.optimizer = None
 
-    def add(self, layer):
-        """
-        Adds a layer to the network.
-        """
-        if not isinstance(layer, Layer):
-            raise TypeError("Added object must be a Layer instance")
-        self.layers.append(layer)
+class Model:
+	def __init__(self):
+		self.layers = []
+		self._built = False
+		self._loss = None
+		self._optimizer = None
 
-    def use_loss(self, loss_func, loss_prime_func):
-        """
-        Sets the loss function and its derivative.
-        """
-        self.loss = loss_func
-        self.loss_prime = loss_prime_func
+	def add(self, layer):
+		self.layers.append(layer)
 
-    def config_optimizer(self, optimizer):
-        """
-        Sets the optimizer.
-        """
-        self.optimizer = optimizer
+	def _forward(self, x):
+		out = x
+		for layer in self.layers:
+			out = layer.forward(out)
+		return out
 
-    def forward(self, input_data):
-        """
-        Performs the forward pass through all layers.
-        """
-        # Forward pass through all layers
-        output = input_data
-        for layer in self.layers:
-            output = layer.forward(output)
-        return output
+	def _backward(self, grad):
+		g = grad
+		for layer in reversed(self.layers):
+			g = layer.backward(g)
 
-    def backward(self, loss_gradient):
-        """
-        Performs the backward pass through all layers in reverse.
-        """
-        gradient = loss_gradient
-        for layer in reversed(self.layers):
-            gradient = layer.backward(gradient)
+	def parameters(self):
+		ps = []
+		for layer in self.layers:
+			if hasattr(layer, "parameters"):
+				ps.extend(layer.parameters())
+		return ps
 
-    def train(self, x_train, y_train, epochs, learning_rate=0.01, verbose=True):
-        """
-        Main training loop.
-        """
-        # Initialize optimizer if not already set, or update its LR
-        if self.optimizer is None:
-            self.optimizer = SGD(learning_rate)
-        else:
-            self.optimizer.learning_rate = learning_rate
+	def compile(self, optimizer, loss):
+		self._optimizer = optimizer(self.parameters()) if callable(optimizer) else optimizer
+		self._loss = loss if not isinstance(loss, str) else __import__('lib').losses.__dict__[loss]()
 
-        # Default loss if not set (Project requirement asks for MSE)
-        if self.loss is None:
-            self.use_loss(mse, mse_prime)
+	def fit(self, X, y, epochs=100, batch_size=4, verbose=1):
+		history = {'loss': []}
+		for epoch in range(1, epochs+1):
+			epoch_loss = 0.0
+			batches = list(to_batches(X, y, batch_size=batch_size, shuffle=True))
+			for xb, yb in batches:
+				preds = self._forward(xb)
+				loss_val = self._loss.forward(preds, yb)
+				epoch_loss += loss_val * xb.shape[0]
+				grad = self._loss.backward()
+				self._backward(grad)
+				# optimizer step
+				self._optimizer.step()
+				# zero grads
+				for layer in self.layers:
+					if hasattr(layer, "zero_grad"):
+						layer.zero_grad()
+			epoch_loss /= X.shape[0]
+			history['loss'].append(epoch_loss)
+			if verbose and (epoch == 1 or epoch % max(1, epochs//10) == 0):
+				print(f"Epoch {epoch}/{epochs} - loss: {epoch_loss:.6f}")
+		return history
 
-        for epoch in range(epochs):
-            loss_display = 0
-            
-            # Forward Pass
-            output = self.forward(x_train)
-            
-            # Calculate Loss
-            loss_display = self.loss(y_train, output)
-            
-            # Backward Pass
-            # 1. Calculate initial gradient from loss function
-            grad = self.loss_prime(y_train, output)
-            
-            # 2. Propagate gradient backward
-            self.backward(grad)
-            
-            # 3. Update parameters
-            self.optimizer.step(self.layers)
-
-            if verbose and (epoch + 1) % 100 == 0:
-                print(f"Epoch {epoch + 1}/{epochs}, Loss: {loss_display:.6f}")
+	def predict(self, X):
+		return self._forward(X)
