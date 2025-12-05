@@ -1,11 +1,26 @@
-# --------------------------
-# FILE: lib/losses.py
-# --------------------------
-"""Loss functions."""
+# =============================================================================
+#  File:        lib/losses.py
+#  Author:      Omar Khaled
+#  Created:     5/12/2025
+#
+#  Description:
+#       Loss function implementations for the neural network library.
+#      
+#
+#  Contents:
+#		- Loss: Base loss class.
+# 		- MSELoss: Mean Squared Error loss.
+# 		- CrossEntropy: Cross-Entropy loss.
+#
+#  Notes:
+#     - All losses inherit from the base Loss class.
+# =============================================================================
+
 import numpy as np
 
 
 class Loss:
+	"""Base class for all loss functions."""
 	def forward(self, pred, target):
 		raise NotImplementedError
 
@@ -14,6 +29,11 @@ class Loss:
 
 
 class MSELoss(Loss):
+	"""Mean Squared Error loss function.
+		Calculates the average squared difference between predictions and targets.
+		g(x, y) = mean((x - y)^2)
+		g'(x, y) = 2 * (x - y) / n
+	"""
 	def __init__(self):
 		self._pred = None
 		self._target = None
@@ -29,6 +49,13 @@ class MSELoss(Loss):
 
 
 class CrossEntropy(Loss):
+	"""Cross-Entropy loss function.
+		Calculates the cross-entropy loss between predicted probabilities and true labels.
+		For binary classification, it expects probabilities from a Sigmoid activation.
+		For multi-class classification, it expects probabilities from a Softmax activation.
+		g(p, t) = -mean(t * log(p))  (categorical)
+		g'(p, t) = (p - t) / n
+	"""
 	def __init__(self):
 		self._pred = None
 		self._target = None
