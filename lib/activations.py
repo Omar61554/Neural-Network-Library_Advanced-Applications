@@ -1,84 +1,112 @@
+# =============================================================================
+#  File:        lib/activations.py
+#  Author:      Omar Khaled
+#  Created:     5/12/2025
+#
+#  Description:
+#      Activation function implementations for the neural network library.
+#      
+#
+#  Contents:
+#		- Activation: Base activation class.
+# 		- Tanh: Hyperbolic tangent activation.
+# 		- Sigmoid: Sigmoid activation.
+# 		- ReLU: Rectified Linear Unit activation.
+# 		- Softmax: Softmax activation. 
+#
+#  Notes:
+#     - All activations inherit from the base Activation class.
+#
+# =============================================================================
+
 import numpy as np
-from .layers import Layer
 
-class Activation(Layer):
-    """
-    Base class for activations, inheriting from Layer.
-    """
-    def __init__(self):
-        super().__init__()
 
-    def forward(self, input_data):
-        self.input = input_data
-        self.output = self._function(self.input)
-        return self.output
+class Activation:
+	"""Base class for all activation functions."""
+	def forward(self, x):
+		raise NotImplementedError
+	def backward(self, grad):
+		raise NotImplementedError
 
-    def backward(self, output_gradient):
-        # Element-wise multiplication: dL/dY * f'(X)
-        return np.multiply(output_gradient, self._derivative(self.input))
-
-    def _function(self, x):
-        raise NotImplementedError
-
-    def _derivative(self, x):
-        raise NotImplementedError
-
-class ReLU(Activation):
-    def _function(self, x):
-        return np.maximum(0, x)
-
-    def _derivative(self, x):
-        return np.where(x > 0, 1, 0)
-
-class Sigmoid(Activation):
-    def _function(self, x):
-        # Clip to prevent overflow
-        x = np.clip(x, -500, 500)
-        return 1 / (1 + np.exp(-x))
-
-    def _derivative(self, x):
-        s = self._function(x)
-        return s * (1 - s)
 
 class Tanh(Activation):
-    def _function(self, x):
-        return np.tanh(x)
+	"""Hyperbolic tangent activation function.
+		Tanh squashes input values to the range [-1, 1].
+	"""
+	def __init__(self):
+		self._out = None
+	def forward(self, x):
+		self._out = np.tanh(x)
+		return self._out
+	def backward(self, grad):
+		return grad * (1 - self._out**2) # derivative of  tanh= 1 - tanh^2(x)
+	def parameters(self):
+		return []
+	def zero_grad(self):
+		return []
 
-    def _derivative(self, x):
-        t = np.tanh(x)
-        return 1 - t**2
 
-class Softmax(Layer):
-    """
-    Softmax is unique because it depends on all inputs for each output.
-    It doesn't fit perfectly into the element-wise Activation pattern above.
-    """
-    def forward(self, input_data):
-        self.input = input_data
-        # Shift values for numerical stability
-        exps = np.exp(self.input - np.max(self.input, axis=1, keepdims=True))
-        self.output = exps / np.sum(exps, axis=1, keepdims=True)
-        return self.output
+class Sigmoid(Activation):
+	"""Sigmoid activation function.
+		Sigmoid squashes input values to the range [0, 1].
+		g(x) = 1 / (1 + exp(-x))
+	"""
+	def __init__(self):
+		self._out = None
+	def forward(self, x):
+		self._out = 1 / (1 + np.exp(-x))
+		return self._out
+	def backward(self, grad):
+		return grad * (self._out * (1 - self._out)) # derivative of sigmoid = sigmoid(x) * (1 - sigmoid(x))
+	def parameters(self):
+		return []
+	def zero_grad(self):
+		return []
 
-    def backward(self, output_gradient):
-        # We need to compute the gradient of the loss w.r.t input (Z)
-        # dL/dZ = dL/dY * dY/dZ
-        # For Softmax, this is complex to vectorize efficiently without huge Jacobian matrices for batches.
-        # However, a simplified efficient implementation for batch processing:
-        
-        n = np.size(self.output, 0) # Batch size
-        input_gradient = np.empty_like(output_gradient)
-        
-        for i in range(n):
-            # Reshape to (output_dim, 1)
-            out_vector = self.output[i].reshape(-1, 1)
-            grad_vector = output_gradient[i].reshape(-1, 1)
-            
-            # Jacobian matrix for single sample: S * (diag(1) - S^T)
-            # or: diag(S) - S * S^T
-            jacobian = np.diagflat(out_vector) - np.dot(out_vector, out_vector.T)
-            
-            # dL/dX = Jacobian . dL/dY
-            input_gradient[i] = np.dot(jacobian, grad_vector).reshape(-1)
-            
-        return input_gradient
+
+class ReLU(Activation):
+	"""Rectified Linear Unit activation function.
+		ReLU outputs the input directly if it is positive; otherwise, it outputs zero.
+		g(x) = max(0, x)
+	"""
+	def __init__(self):
+		self._mask = None
+	def forward(self, x):
+		self._mask = (x > 0).astype(float)
+		return x * self._mask
+	def backward(self, grad):
+		return grad * self._mask # derivative of ReLU is 1 for x>0 else 0
+	def parameters(self):
+		return []
+	def zero_grad(self):
+		return []
+	
+class Softmax(Activation):
+	"""Softmax activation function.
+		Softmax converts logits into probabilities that sum to 1.
+		Typically used in the output layer for multi-class classification.
+		g(x_i) = exp(x_i) / sum_j exp(x_j)
+		g'(x_i) = g(x_i) * (1 - g(x_i)) for i=j
+		          -g(x_i) * g(x_j) for i!=j
+	"""
+	def __init__(self):
+		self._out = None
+
+	def forward(self, x):
+		exp_x = np.exp(x - np.max(x, axis=1, keepdims=True))
+		self._out = exp_x / np.sum(exp_x, axis=1, keepdims=True)
+		return self._out
+
+	def backward(self, grad):
+		batch_size = grad.shape[0]
+		dx = np.zeros_like(grad)
+		for i in range(batch_size):
+			y = self._out[i].reshape(-1, 1)
+			jacobian = np.diagflat(y) - np.dot(y, y.T)
+			dx[i] = np.dot(jacobian, grad[i])
+		return dx
+	def parameters(self):
+		return []
+	def zero_grad(self):
+		return []
