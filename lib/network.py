@@ -145,3 +145,58 @@ class Model:
     def predict(self, X):
         """Runs inference on given input."""
         return self._forward(X)
+
+    def save_weights(self, filepath):
+        """
+        Saves all layer parameters (weights and biases) to an NPZ file.
+
+        Parameters
+        ----------
+        filepath : str
+            Path where to save the .npz file.
+
+        Example
+        -------
+        >>> model.save_weights('model_weights.npz')
+        """
+        import os
+        weights = {}
+        for i, layer in enumerate(self.layers):
+            if hasattr(layer, "W"):
+                weights[f"layer_{i}_W"] = layer.W
+                if hasattr(layer, "b") and layer.b is not None:
+                    weights[f"layer_{i}_b"] = layer.b
+        np.savez(filepath, **weights)
+        print(f"Weights saved to {filepath}")
+
+    def load_weights(self, filepath):
+        """
+        Loads layer parameters (weights and biases) from an NPZ file.
+
+        Parameters
+        ----------
+        filepath : str
+            Path to the saved .npz file.
+
+        Notes
+        -----
+        - Assumes the file contains keys like 'layer_0_W', 'layer_0_b', etc.
+        - Layers with Dense parameters will be restored if keys match.
+
+        Example
+        -------
+        >>> model.load_weights('model_weights.npz')
+        """
+        try:
+            data = np.load(filepath, allow_pickle=True)
+            for i, layer in enumerate(self.layers):
+                w_key = f"layer_{i}_W"
+                b_key = f"layer_{i}_b"
+                if w_key in data and hasattr(layer, "W"):
+                    layer.W[:] = data[w_key]
+                if b_key in data and hasattr(layer, "b"):
+                    layer.b[:] = data[b_key]
+            print(f"Weights loaded from {filepath}")
+        except Exception as e:
+            print(f"Error loading weights: {e}")
+            raise

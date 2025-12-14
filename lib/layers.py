@@ -107,7 +107,7 @@ class Layer:
         pass
 
 
-class Linear(Layer):
+class Dense(Layer):
     """
     Fully-connected (dense) layer.
 

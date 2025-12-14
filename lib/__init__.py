@@ -29,7 +29,7 @@
 # =============================================================================
 
 from .network import Model
-from .layers import Linear, Flatten
+from .layers import Dense, Flatten
 from .activations import Tanh, Sigmoid, ReLU, Softmax
 from .losses import MSELoss, CrossEntropy
 from .optimizer import SGD
@@ -37,5 +37,5 @@ from .optimizer import SGD
 
 
 __all__ = [
-'Model', 'Linear', 'Flatten', 'Tanh', 'Sigmoid', 'ReLU','Softmax', 'MSELoss', 'CrossEntropy', 'SGD'
+'Model', 'Dense', 'Flatten', 'Tanh', 'Sigmoid', 'ReLU','Softmax', 'MSELoss', 'CrossEntropy', 'SGD'
 ]
