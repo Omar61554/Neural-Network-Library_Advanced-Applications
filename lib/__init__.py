@@ -35,7 +35,6 @@ from .losses import MSELoss, CrossEntropy
 from .optimizer import SGD
 
 
-
 __all__ = [
 'Model', 'Dense', 'Flatten', 'Tanh', 'Sigmoid', 'ReLU','Softmax', 'MSELoss', 'CrossEntropy', 'SGD'
 ]

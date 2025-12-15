@@ -18,6 +18,7 @@
 #
 # =============================================================================
 
+
 import numpy as np
 from .utils import xavier_init, he_init, to_batches 
 
