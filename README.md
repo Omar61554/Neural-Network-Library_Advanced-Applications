@@ -126,7 +126,7 @@ This validates the correctness of the analytical gradients.
 
 ## Installation
 ```
-git clone <your-repo-url>
+git clone https://github.com/Omar61554/Neural-Network-Library_Advanced-Applications
 cd Neural-Network-Library-Advanced-Applications
 pip install -r requirements.txt
 ```
