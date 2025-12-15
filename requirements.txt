@@ -1,4 +1,5 @@
 numpy
 matplotlib
 jupyter
+tensorflow
 # use the project's NumPy-based library; no external ML libs required
