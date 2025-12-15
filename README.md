@@ -125,7 +125,12 @@ $ \frac{\partial L}{\partial W} \approx \frac{L(W + \epsilon) - L(W - \epsilon)}
 This validates the correctness of the analytical gradients.
 
 ## Installation
-```git clone <your-repo-url> cd Neural-Network-Library-Advanced-Applications pip install -r requirements.txt ```
+```
+git clone https://github.com/Omar61554/Neural-Network-Library_Advanced-Applications
+cd Neural-Network-Library-Advanced-Applications
+pip install -r requirements.txt
+```
+
 
 
 
