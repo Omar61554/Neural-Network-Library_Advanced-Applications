@@ -218,9 +218,9 @@ class Dense(Layer):
         batch_size = self._x.shape[0]
 
         # Compute gradients
-        self.dW[:] = self._x.T.dot(grad) / batch_size # Scale by batch size
+        self.dW[:] = self._x.T.dot(grad)   # Average over batch
         if self.use_bias:
-            self.db[:] = np.mean(grad, axis=0, keepdims=True) # Average over batch
+            self.db[:] = np.sum(grad, axis=0, keepdims=True)  # Average over batch
 
         # Gradient w.r.t. input
         return grad.dot(self.W.T)
